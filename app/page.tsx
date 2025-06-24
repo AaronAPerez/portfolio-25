@@ -46,7 +46,7 @@ const ProjectsLoadingFallback = () => (
  * Includes loading fallback and error boundary for better UX.
  */
 const ProjectsSection = dynamic(
-  () => import('@/components/sections/ProjectSection'),
+  () => import('@/components/sections/ProjectsSection'),
   {
     loading: () => <ProjectsLoadingFallback />,
     ssr: true, // Enable SSR for better SEO

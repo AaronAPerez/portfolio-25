@@ -101,6 +101,8 @@ export function usePerformanceMonitor(config: PerformanceMonitorConfig = {}) {
 
   /**
    * Records a new performance metric
+   * 
+   * @param metric - The metric to record (timestamp will be added if not provided)
    */
   const recordMetric = useCallback((
     metric: Omit<PerformanceMetric, 'timestamp'> & { timestamp?: number }
@@ -113,6 +115,7 @@ export function usePerformanceMonitor(config: PerformanceMonitorConfig = {}) {
 
     setMetrics(prev => {
       const updated = [...prev, newMetric];
+      // Keep only the most recent metrics
       return updated.slice(-finalConfig.maxStoredMetrics!);
     });
 
@@ -132,6 +135,10 @@ export function usePerformanceMonitor(config: PerformanceMonitorConfig = {}) {
 
   /**
    * Gets stored metrics with optional filtering
+   * 
+   * @param metricName - Filter by specific metric name
+   * @param timeRange - Time range in milliseconds (from now)
+   * @returns Filtered array of metrics
    */
   const getMetrics = useCallback((metricName?: string, timeRange?: number) => {
     let filtered = metrics;
@@ -150,6 +157,9 @@ export function usePerformanceMonitor(config: PerformanceMonitorConfig = {}) {
 
   /**
    * Calculates average values and trends for metrics
+   * 
+   * @param timeRange - Optional time range to consider (in milliseconds)
+   * @returns Object with averages and trends for each metric
    */
   const getAverages = useCallback((timeRange?: number): MetricAverages => {
     const relevantMetrics = getMetrics(undefined, timeRange);
@@ -172,7 +182,7 @@ export function usePerformanceMonitor(config: PerformanceMonitorConfig = {}) {
       const rating = goodCount > ratings.length / 2 ? 'good' : 
                    goodCount > 0 ? 'needs-improvement' : 'poor';
 
-      // Calculate trend
+      // Calculate trend (comparing first half vs second half of metrics)
       let trend: 'improving' | 'stable' | 'declining' = 'stable';
       if (metricList.length >= 10) {
         const midPoint = Math.floor(metricList.length / 2);
@@ -183,7 +193,8 @@ export function usePerformanceMonitor(config: PerformanceMonitorConfig = {}) {
         const secondAvg = secondHalf.reduce((sum, m) => sum + m.value, 0) / secondHalf.length;
         
         const change = (secondAvg - firstAvg) / firstAvg;
-        if (Math.abs(change) > 0.1) {
+        if (Math.abs(change) > 0.1) { // 10% change threshold
+          // For metrics like LCP, CLS - lower is better
           const isLowerBetter = ['LCP', 'CLS', 'FID', 'TTFB'].includes(name);
           trend = isLowerBetter 
             ? (change < 0 ? 'improving' : 'declining')
@@ -204,9 +215,11 @@ export function usePerformanceMonitor(config: PerformanceMonitorConfig = {}) {
 
   /**
    * Gets performance score based on Core Web Vitals
+   * 
+   * @returns Performance score (0-100) or null if no data
    */
   const getPerformanceScore = useCallback(() => {
-    const recentMetrics = getMetrics(undefined, 24 * 60 * 60 * 1000);
+    const recentMetrics = getMetrics(undefined, 24 * 60 * 60 * 1000); // Last 24 hours
     const coreVitals = ['LCP', 'FID', 'CLS'];
     
     let score = 0;
@@ -219,9 +232,15 @@ export function usePerformanceMonitor(config: PerformanceMonitorConfig = {}) {
         let metricScore = 0;
         
         switch (latestMetric.rating) {
-          case 'good': metricScore = 100; break;
-          case 'needs-improvement': metricScore = 75; break;
-          case 'poor': metricScore = 25; break;
+          case 'good':
+            metricScore = 100;
+            break;
+          case 'needs-improvement':
+            metricScore = 75;
+            break;
+          case 'poor':
+            metricScore = 25;
+            break;
         }
         
         score += metricScore;
@@ -234,6 +253,9 @@ export function usePerformanceMonitor(config: PerformanceMonitorConfig = {}) {
 
   /**
    * Gets the latest metric for a specific name
+   * 
+   * @param metricName - Name of the metric to get
+   * @returns Latest metric or undefined if not found
    */
   const getLatestMetric = useCallback((metricName: string) => {
     const metricsList = getMetrics(metricName);
@@ -242,6 +264,8 @@ export function usePerformanceMonitor(config: PerformanceMonitorConfig = {}) {
 
   /**
    * Gets performance insights and recommendations
+   * 
+   * @returns Object with insights and improvement recommendations
    */
   const getPerformanceInsights = useCallback(() => {
     const averages = getAverages();
@@ -259,6 +283,7 @@ export function usePerformanceMonitor(config: PerformanceMonitorConfig = {}) {
 
     const performanceScore = getPerformanceScore();
     
+    // Generate summary
     if (performanceScore === null) {
       insights.summary = 'No performance data available yet.';
     } else if (performanceScore >= 90) {
@@ -269,6 +294,7 @@ export function usePerformanceMonitor(config: PerformanceMonitorConfig = {}) {
       insights.summary = 'Performance needs attention. Several metrics can be improved.';
     }
 
+    // Analyze specific metrics
     Object.entries(averages).forEach(([metricName, data]) => {
       switch (metricName) {
         case 'LCP':
@@ -296,6 +322,7 @@ export function usePerformanceMonitor(config: PerformanceMonitorConfig = {}) {
           break;
       }
 
+      // Check for improvements
       if (data.trend === 'improving') {
         insights.improvements.push(`${metricName} is improving over time`);
       }
@@ -306,11 +333,15 @@ export function usePerformanceMonitor(config: PerformanceMonitorConfig = {}) {
 
   /**
    * Exports metrics data for analysis
+   * 
+   * @param format - Export format ('json' | 'csv')
+   * @returns Formatted metrics data
    */
   const exportMetrics = useCallback((format: 'json' | 'csv' = 'json') => {
     if (format === 'json') {
       return JSON.stringify(metrics, null, 2);
     } else {
+      // CSV format
       const headers = ['name', 'value', 'rating', 'timestamp', 'url'];
       const rows = metrics.map(metric => [
         metric.name,
@@ -338,6 +369,8 @@ export function usePerformanceMonitor(config: PerformanceMonitorConfig = {}) {
 
   /**
    * Gets metrics statistics
+   * 
+   * @returns Object with various statistics about the metrics
    */
   const getMetricsStats = useCallback(() => {
     const uniqueMetrics = [...new Set(metrics.map(m => m.name))];
@@ -362,15 +395,22 @@ export function usePerformanceMonitor(config: PerformanceMonitorConfig = {}) {
   }, [metrics]);
 
   return {
+    // State
     metrics,
     isLoading,
+    
+    // Core methods
     recordMetric,
     getMetrics,
     getLatestMetric,
     getAverages,
     getPerformanceScore,
+    
+    // Analysis methods
     getPerformanceInsights,
     getMetricsStats,
+    
+    // Utility methods
     exportMetrics,
     clearMetrics,
   };
@@ -378,6 +418,8 @@ export function usePerformanceMonitor(config: PerformanceMonitorConfig = {}) {
 
 /**
  * Simplified performance monitor hook for basic usage
+ * 
+ * @returns Basic performance monitoring utilities
  */
 export function useSimplePerformanceMonitor() {
   return usePerformanceMonitor({
@@ -386,6 +428,9 @@ export function useSimplePerformanceMonitor() {
     enableAnalytics: false,
   });
 }
+
+// Type exports
+// (Removed redundant export type statement to avoid conflicts)
 
 // Default export
 export default usePerformanceMonitor;

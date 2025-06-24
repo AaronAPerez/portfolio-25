@@ -1,19 +1,13 @@
-/**
- * Root Layout Component (Fixed Version)
- */
-
-// import type { Metadata, Viewport } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 
 
 import { SkipLinks } from "@/components/accessibility/SkipLinks";
-import { WebVitalsTracker } from "@/components/monitoring/WebVitalsTracker";
+import { WebVitalsTracker } from "@/hooks/useWebVitalsTracker";
 import { ThemeProvider } from "@/lib/theme-context";
 import Navigation from "@/components/layout/Navigation";
 import {  personData } from "@/data/seoConfig";
 import { StructuredData } from "@/lib/seo/StructuredData";
-// import { generateSEOMetadata } from "@/lib/seo/generateSEOMetadata";
 
 
 const geistSans = Geist({
